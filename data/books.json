@@ -10,5 +10,17 @@
     "category": "book",
     "price": "29.00",
     "quantity": "1"
+  },
+  {
+    "id": "000002",
+    "title": "llll",
+    "author": "abcd",
+    "isbn": "ABCD-ABCD",
+    "publisher": "abcd",
+    "publish_date": "2026",
+    "location": "second",
+    "category": "book",
+    "price": "37.00",
+    "quantity": "1"
   }
 ]

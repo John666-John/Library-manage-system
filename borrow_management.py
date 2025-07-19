@@ -141,7 +141,7 @@ class BorrowManagementTab(QWidget):
             ]
 
             if not user_unreturned:
-                QMessageBox.information(self, "提示", "无未归还图书（需求3.1.3）")
+                QMessageBox.information(self, "提示", "无未归还图书")
                 return
 
             # 2. 弹出归还对话框（需正确实现get_selected_record方法）
@@ -152,7 +152,7 @@ class BorrowManagementTab(QWidget):
             # 3. 获取选中记录（关键修复：确保方法存在）
             selected_record = dialog.get_selected_record()
             if not selected_record:
-                QMessageBox.warning(self, "错误", "未选择图书（需求3.1.3）")
+                QMessageBox.warning(self, "错误", "未选择图书")
                 return
 
             # 4. 更新借阅记录（需求3.1.3：标记实际归还时间）
@@ -170,7 +170,7 @@ class BorrowManagementTab(QWidget):
 
             # 6. 刷新可借阅列表（需求3.1.3：归还后更新状态）
             self.load_available_books()
-            QMessageBox.information(self, "成功", "图书归还成功（需求3.1.3）")
+            QMessageBox.information(self, "成功", "图书归还成功")
 
         except Exception as e:
             QMessageBox.critical(self, "操作失败", f"归还过程出错：{str(e)}")
@@ -244,7 +244,7 @@ class ReturnDialog(QDialog):
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("选择归还图书（需求3.1.3）")
+        self.setWindowTitle("选择归还图书")
         self.setFixedSize(600, 300)
 
         # 表格初始化（仅展示必要字段：需求3.1.3核心信息）
@@ -266,7 +266,7 @@ class ReturnDialog(QDialog):
 
         # 按钮布局（需求3.1.3交互流程）
         btn_layout = QHBoxLayout()
-        self.ok_btn = QPushButton("确认归还")
+        self.ok_btn = QPushButton("确认")
         self.cancel_btn = QPushButton("取消")
         self.ok_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)

@@ -102,7 +102,7 @@ class BookManagementTab(QWidget):
 
             # 优化：通过集合快速校验唯一性（O(1)复杂度，替代原遍历方式）
             if book_id in self.book_ids:
-                QMessageBox.warning(self, "警告", "图书编号已存在（需求3.1.2）")
+                QMessageBox.warning(self, "警告", "图书编号已存在")
                 return
 
             try:
@@ -112,7 +112,7 @@ class BookManagementTab(QWidget):
                 save_json(BOOKS_FILE, self.books)  # 保持原存储格式，符合需求3.3数据存储约束
 
                 self.load_books()  # 刷新表格
-                QMessageBox.information(self, "成功", "图书添加成功（需求3.1.2）")
+                QMessageBox.information(self, "成功", "图书添加成功")
             except Exception as e:
                 # 新增：异常捕获，避免程序退出
                 QMessageBox.critical(self, "错误", f"添加失败：{str(e)}")
@@ -154,7 +154,7 @@ class BookManagementTab(QWidget):
                 return
 
             if QMessageBox.question(self, "确认",
-                                    "确定要删除选中的图书吗？\n删除后不可恢复，相关借阅记录不受影响（需求3.1.2）",
+                                    "确定要删除选中的图书吗？\n删除后不可恢复，相关借阅记录不受影响",
                                     QMessageBox.Yes | QMessageBox.No) == QMessageBox.No:
                 return
 
