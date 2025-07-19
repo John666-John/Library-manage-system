@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "000001",
+    "title": "lll",
+    "author": "abc",
+    "isbn": "ABC-ABC",
+    "publisher": "abc",
+    "publish_date": "2025",
+    "location": "first",
+    "category": "book",
+    "price": "29.00",
+    "quantity": "1"
+  }
+]
