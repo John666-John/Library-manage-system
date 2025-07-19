@@ -23,9 +23,12 @@ class BorrowManagementTab(QWidget):
         self.search_edit.setPlaceholderText("输入书名、作者或ISBN搜索可借阅图书")
         self.search_btn = QPushButton("搜索")
         self.search_btn.clicked.connect(self.search_books)
+        self.refresh_btn = QPushButton("刷新")
+        self.refresh_btn.clicked.connect(self.load_available_books)
 
         search_layout.addWidget(self.search_edit)
         search_layout.addWidget(self.search_btn)
+        search_layout.addWidget(self.refresh_btn)
         layout.addLayout(search_layout)
 
         # 可借阅图书表格

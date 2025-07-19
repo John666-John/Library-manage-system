@@ -22,5 +22,29 @@
     "category": "book",
     "price": "37.00",
     "quantity": "1"
+  },
+  {
+    "id": "000003",
+    "title": "大学",
+    "author": "高尔基",
+    "isbn": "ABC-ABCDE",
+    "publisher": "人民出版社",
+    "publish_date": "1898",
+    "location": "third",
+    "category": "",
+    "price": "",
+    "quantity": "1"
+  },
+  {
+    "id": "000004",
+    "title": "童年",
+    "author": "高尔基",
+    "isbn": "ABC-ABCDEF",
+    "publisher": "人民出版社",
+    "publish_date": "1898",
+    "location": "forth",
+    "category": "",
+    "price": "",
+    "quantity": "1"
   }
 ]
