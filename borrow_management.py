@@ -1,7 +1,9 @@
+# borrow_management.py
 import datetime
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
                              QPushButton, QTableWidget, QTableWidgetItem, QGroupBox,
-                             QTextEdit, QMessageBox, QHeaderView, QApplication, QDialog)
+                             QTextEdit, QMessageBox, QHeaderView, QApplication,
+                             QDialog, QTabWidget)
 from PyQt5.QtCore import Qt
 from data_utils import load_json, load_csv, save_csv, BOOKS_FILE, BORROW_RECORDS_FILE
 
@@ -17,6 +19,13 @@ class BorrowManagementTab(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # 标签页
+        self.tabs = QTabWidget()
+
+        # 可借阅图书标签页
+        borrow_tab = QWidget()
+        borrow_layout = QVBoxLayout(borrow_tab)
+
         # 搜索区域
         search_layout = QHBoxLayout()
         self.search_edit = QLineEdit()
@@ -29,7 +38,7 @@ class BorrowManagementTab(QWidget):
         search_layout.addWidget(self.search_edit)
         search_layout.addWidget(self.search_btn)
         search_layout.addWidget(self.refresh_btn)
-        layout.addLayout(search_layout)
+        borrow_layout.addLayout(search_layout)
 
         # 可借阅图书表格
         self.book_table = QTableWidget()
@@ -37,19 +46,44 @@ class BorrowManagementTab(QWidget):
         self.book_table.setHorizontalHeaderLabels(["图书编号", "书名", "作者", "ISBN",
                                                    "出版社", "出版日期", "馆藏位置"])
         self.book_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        layout.addWidget(self.book_table)
+        borrow_layout.addWidget(self.book_table)
 
         # 操作按钮
         btn_layout = QHBoxLayout()
         self.borrow_btn = QPushButton("借阅选中图书")
+        self.borrow_btn.clicked.connect(self.borrow_book)
+        btn_layout.addWidget(self.borrow_btn)
+        borrow_layout.addLayout(btn_layout)
+
+        # 添加标签页
+        self.tabs.addTab(borrow_tab, "可借阅图书")
+
+        # 借阅历史标签页
+        history_tab = QWidget()
+        history_layout = QVBoxLayout(history_tab)
+
+        # 历史记录表格
+        self.history_table = QTableWidget()
+        self.history_table.setColumnCount(6)
+        self.history_table.setHorizontalHeaderLabels(
+            ["图书编号", "书名", "借阅时间", "应还时间", "实际归还时间", "状态"]
+        )
+        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        history_layout.addWidget(self.history_table)
+
+        # 添加标签页
+        self.tabs.addTab(history_tab, "借阅历史")
+
+        layout.addWidget(self.tabs)
+
+        # 操作按钮 (跨标签页)
+        btn_layout = QHBoxLayout()
         self.return_btn = QPushButton("归还图书")
         self.renew_btn = QPushButton("续借图书")
 
-        self.borrow_btn.clicked.connect(self.borrow_book)
         self.return_btn.clicked.connect(self.return_book)
         self.renew_btn.clicked.connect(self.renew_book)
 
-        btn_layout.addWidget(self.borrow_btn)
         btn_layout.addWidget(self.return_btn)
         btn_layout.addWidget(self.renew_btn)
         layout.addLayout(btn_layout)
@@ -73,6 +107,7 @@ class BorrowManagementTab(QWidget):
 
         self.available_books = [b for b in self.books if b["id"] not in borrowed_ids]
         self.update_book_table(self.available_books)
+        self.load_borrow_history()
         self.check_overdue()
 
     def update_book_table(self, books):
@@ -87,11 +122,36 @@ class BorrowManagementTab(QWidget):
             self.book_table.setItem(row, 5, QTableWidgetItem(book.get("publish_date", "")))
             self.book_table.setItem(row, 6, QTableWidgetItem(book.get("location", "")))
 
+    def load_borrow_history(self):
+        """加载当前用户的借阅历史"""
+        records = load_csv(BORROW_RECORDS_FILE)
+        user_records = [r for r in records if r["borrower"] == self.user["username"]]
+
+        # 按借阅时间倒序排序
+        user_records.sort(key=lambda r: r["borrow_time"], reverse=True)
+
+        self.history_table.setRowCount(len(user_records))
+        for row, r in enumerate(user_records):
+            self.history_table.setItem(row, 0, QTableWidgetItem(r["book_id"]))
+            self.history_table.setItem(row, 1, QTableWidgetItem(r["book_title"]))
+            self.history_table.setItem(row, 2, QTableWidgetItem(r["borrow_time"]))
+            self.history_table.setItem(row, 3, QTableWidgetItem(r["due_time"]))
+
+            actual_return = r["actual_return_time"]
+            if not actual_return.strip():
+                actual_return = "尚未归还"
+
+            self.history_table.setItem(row, 4, QTableWidgetItem(actual_return))
+
+            # 状态判断
+            status = "已归还" if actual_return != "尚未归还" else "未归还"
+            self.history_table.setItem(row, 5, QTableWidgetItem(status))
+
     def search_books(self):
         """搜索可借阅图书"""
         keyword = self.search_edit.text().lower().strip()
         if not keyword:
-            self.load_available_books()
+            self.update_book_table(self.available_books)
             return
 
         filtered = [b for b in self.available_books if
@@ -293,6 +353,7 @@ class ReturnDialog(QDialog):
         if self.selected_row == -1 or self.selected_row >= len(self.records):
             return None  # 未选中或索引越界
         return self.records[self.selected_row]  # 返回选中记录
+
 
 class RenewDialog(ReturnDialog):
     def __init__(self, records):

@@ -1,12 +1,14 @@
+# user_management.py
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QTableWidget, QTableWidgetItem, QMessageBox, QHeaderView)
 from data_utils import load_json, save_json, USERS_FILE
 
 
 class UserManagementTab(QWidget):
-    def __init__(self):
+    def __init__(self, on_current_user_deleted=None):
         super().__init__()
         self.users = []
+        self.on_current_user_deleted = on_current_user_deleted
         self.init_ui()
 
     def init_ui(self):
@@ -49,13 +51,33 @@ class UserManagementTab(QWidget):
             QMessageBox.warning(self, "警告", "请选择要删除的用户")
             return
 
-        if QMessageBox.question(self, "确认", f"确定删除选中的 {len(selected_rows)} 个用户？",
+        # 检查是否包含当前用户
+        current_user_deleted = False
+        current_username = None
+        if hasattr(self.parent(), 'user'):
+            current_username = self.parent().user["username"]
+
+        # 获取要删除的用户名
+        usernames_to_delete = []
+        for row in selected_rows:
+            username = self.users[row]["username"]
+            usernames_to_delete.append(username)
+            if username == current_username:
+                current_user_deleted = True
+
+        # 确认删除
+        if QMessageBox.question(self, "确认",
+                                f"确定删除选中的 {len(selected_rows)} 个用户？\n删除后不可恢复",
                                 QMessageBox.Yes | QMessageBox.No) == QMessageBox.No:
             return
 
         # 执行删除
-        usernames = [self.users[row]["username"] for row in selected_rows]
-        self.users = [u for u in self.users if u["username"] not in usernames]
+        self.users = [u for u in self.users if u["username"] not in usernames_to_delete]
         save_json(USERS_FILE, self.users)
         self.load_users()
+
+        # 如果删除了当前用户，触发回调
+        if current_user_deleted and self.on_current_user_deleted:
+            self.on_current_user_deleted()
+
         QMessageBox.information(self, "成功", "用户删除成功")

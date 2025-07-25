@@ -1,3 +1,4 @@
+# login_window.py
 import sys
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
                              QPushButton, QFormLayout, QMessageBox, QComboBox)

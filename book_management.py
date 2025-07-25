@@ -1,10 +1,15 @@
+# book_management.py
 import sys
+import os
+import csv
 import datetime
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
                              QPushButton, QTableWidget, QTableWidgetItem, QMessageBox,
-                             QFormLayout, QHeaderView, QDialog, QApplication)
+                             QFormLayout, QHeaderView, QDialog, QApplication, QFileDialog)
 from PyQt5.QtCore import Qt
 from data_utils import load_json, save_json, BOOKS_FILE, load_csv, BORROW_RECORDS_FILE
+from PyQt5.QtChart import QChart, QChartView, QBarSet, QBarSeries, QBarCategoryAxis
+from PyQt5.QtGui import QPainter
 
 
 class BookManagementTab(QWidget):
@@ -38,14 +43,20 @@ class BookManagementTab(QWidget):
             self.add_btn = QPushButton("添加图书")
             self.edit_btn = QPushButton("修改图书")
             self.delete_btn = QPushButton("删除图书")
+            self.import_btn = QPushButton("批量导入")
+            self.stats_btn = QPushButton("图书统计")
 
             self.add_btn.clicked.connect(self.add_book)
             self.edit_btn.clicked.connect(self.edit_book)
             self.delete_btn.clicked.connect(self.delete_book)
+            self.import_btn.clicked.connect(self.import_books)
+            self.stats_btn.clicked.connect(self.show_book_stats)
 
             btn_layout.addWidget(self.add_btn)
             btn_layout.addWidget(self.edit_btn)
             btn_layout.addWidget(self.delete_btn)
+            btn_layout.addWidget(self.import_btn)
+            btn_layout.addWidget(self.stats_btn)
             layout.addLayout(btn_layout)
 
         # 图书表格
@@ -169,6 +180,120 @@ class BookManagementTab(QWidget):
             QMessageBox.information(self, "成功", "图书删除成功")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"删除失败：{str(e)}")
+
+    def import_books(self):
+        """批量导入图书"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择CSV文件", "", "CSV文件 (*.csv)"
+        )
+        if not file_path:
+            return
+
+        try:
+            imported_books = []
+            duplicate_ids = []
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # 检查图书ID是否唯一
+                    if row['id'] in self.book_ids:
+                        duplicate_ids.append(row['id'])
+                        continue
+
+                    # 创建图书对象
+                    book = {
+                        "id": row['id'],
+                        "title": row.get('title', ''),
+                        "author": row.get('author', ''),
+                        "isbn": row.get('isbn', ''),
+                        "publisher": row.get('publisher', ''),
+                        "publish_date": row.get('publish_date', ''),
+                        "location": row.get('location', ''),
+                        "category": row.get('category', ''),
+                        "price": row.get('price', '0'),
+                        "quantity": row.get('quantity', '1')
+                    }
+                    imported_books.append(book)
+                    self.book_ids.add(row['id'])  # 添加到ID集合
+
+            # 添加到主图书列表
+            self.books.extend(imported_books)
+            save_json(BOOKS_FILE, self.books)
+
+            # 显示导入结果
+            success_count = len(imported_books)
+            dup_count = len(duplicate_ids)
+            msg = f"成功导入 {success_count} 本图书"
+            if dup_count > 0:
+                msg += f"\n{dup_count} 本图书因ID重复被跳过"
+                msg += f"\n重复ID: {', '.join(duplicate_ids[:5])}" + ("..." if dup_count > 5 else "")
+
+            QMessageBox.information(self, "导入完成", msg)
+            self.load_books()
+
+        except Exception as e:
+            QMessageBox.critical(self, "导入失败", f"导入过程中发生错误: {str(e)}")
+
+    def show_book_stats(self):
+        """显示图书统计信息"""
+        # 按分类统计图书数量
+        category_counts = {}
+        for book in self.books:
+            category = book.get("category", "未分类")
+            category_counts[category] = category_counts.get(category, 0) + 1
+
+        # 如果没有图书数据
+        if not category_counts:
+            QMessageBox.information(self, "图书统计", "没有可统计的图书数据")
+            return
+
+        # 创建图表
+        chart = QChart()
+        chart.setTitle("图书分类统计")
+        chart.setAnimationOptions(QChart.SeriesAnimations)
+
+        # 创建柱状图数据
+        bar_set = QBarSet("图书数量")
+        categories = []
+
+        # 按数量排序
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+
+        for category, count in sorted_categories:
+            bar_set.append(count)
+            categories.append(category)
+
+        bar_series = QBarSeries()
+        bar_series.append(bar_set)
+        chart.addSeries(bar_series)
+
+        # 创建X轴
+        axis_x = QBarCategoryAxis()
+        axis_x.append(categories)
+        chart.addAxis(axis_x, Qt.AlignBottom)
+        bar_series.attachAxis(axis_x)
+
+        # 创建Y轴
+        axis_y = QBarCategoryAxis()
+        max_count = max(category_counts.values())
+        axis_y.setRange("0", str(max_count))
+        chart.addAxis(axis_y, Qt.AlignLeft)
+        bar_series.attachAxis(axis_y)
+
+        # 图表视图
+        chart_view = QChartView(chart)
+        chart_view.setRenderHint(QPainter.Antialiasing)
+
+        # 创建对话框显示图表
+        stats_dialog = QDialog(self)
+        stats_dialog.setWindowTitle("图书分类统计")
+        stats_dialog.setMinimumSize(800, 600)
+
+        layout = QVBoxLayout()
+        layout.addWidget(chart_view)
+        stats_dialog.setLayout(layout)
+
+        stats_dialog.exec_()
 
 
 # 优化：使用QDialog实现对话框，解决事件循环导致的卡顿

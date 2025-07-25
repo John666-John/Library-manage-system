@@ -1,49 +1,13 @@
 [
   {
-    "id": "000001",
-    "title": "lll",
-    "author": "abc",
-    "isbn": "ABC-ABC",
-    "publisher": "abc",
-    "publish_date": "2025",
-    "location": "first",
-    "category": "book",
-    "price": "29.00",
-    "quantity": "1"
-  },
-  {
-    "id": "000002",
-    "title": "llll",
-    "author": "abcd",
-    "isbn": "ABCD-ABCD",
-    "publisher": "abcd",
-    "publish_date": "2026",
-    "location": "second",
-    "category": "book",
-    "price": "37.00",
-    "quantity": "1"
-  },
-  {
-    "id": "000003",
-    "title": "大学",
-    "author": "高尔基",
-    "isbn": "ABC-ABCDE",
-    "publisher": "人民出版社",
-    "publish_date": "1898",
-    "location": "third",
-    "category": "",
-    "price": "",
-    "quantity": "1"
-  },
-  {
-    "id": "000004",
-    "title": "童年",
-    "author": "高尔基",
-    "isbn": "ABC-ABCDEF",
-    "publisher": "人民出版社",
-    "publish_date": "1898",
-    "location": "forth",
-    "category": "",
+    "id": "123123",
+    "title": "123",
+    "author": "123",
+    "isbn": "",
+    "publisher": "",
+    "publish_date": "",
+    "location": "",
+    "category": "123",
     "price": "",
     "quantity": "1"
   }

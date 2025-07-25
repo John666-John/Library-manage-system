@@ -1,3 +1,4 @@
+# main_window.py
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QMenuBar, QMenu, QAction, QMessageBox)
 from PyQt5.QtGui import QIcon
@@ -14,6 +15,10 @@ class MainWindow(QMainWindow):
         self.app = app
         self.user = user
         self.init_ui()
+
+    def handle_current_user_deleted(self):
+        """处理当前用户被删除的情况"""
+        self.app.logout()
 
     def init_ui(self):
         self.setWindowTitle(
@@ -37,7 +42,7 @@ class MainWindow(QMainWindow):
 
         # 管理员专属标签
         if self.user["role"] == "admin":
-            self.user_tab = UserManagementTab()
+            self.user_tab = UserManagementTab(self.handle_current_user_deleted)
             self.tabs.addTab(self.user_tab, "用户管理")
 
         main_layout.addWidget(self.tabs)
@@ -64,6 +69,11 @@ class MainWindow(QMainWindow):
         backup_action.triggered.connect(self.backup_data)
         sys_menu.addAction(backup_action)
 
+        # 退出登录
+        logout_action = QAction("退出登录", self)
+        logout_action.triggered.connect(self.logout)
+        sys_menu.addAction(logout_action)
+
         # 退出
         exit_action = QAction("退出", self)
         exit_action.triggered.connect(self.close)
@@ -74,6 +84,15 @@ class MainWindow(QMainWindow):
         about_action = QAction("关于", self)
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+
+    def logout(self):
+        """退出登录"""
+        if QMessageBox.question(
+                self, "确认退出",
+                "确定要退出当前账号吗？",
+                QMessageBox.Yes | QMessageBox.No
+        ) == QMessageBox.Yes:
+            self.app.logout()
 
     def backup_data(self):
         """手动备份数据"""
