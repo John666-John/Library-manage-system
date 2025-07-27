@@ -1,12 +1,11 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QHBoxLayout,
                              QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
-                             QHeaderView, QMessageBox, QDialog, QGroupBox)
+                             QHeaderView, QMessageBox, QDialog, QGroupBox, QLabel, QInputDialog)
 import datetime
 from data_utils import load_json, load_csv, save_csv
 
 BOOKS_FILE = 'data/books.json'
 BORROW_RECORDS_FILE = 'data/borrow_records.csv'
-
 
 class BorrowManagementTab(QWidget):
     def __init__(self, user):
@@ -111,7 +110,7 @@ class BorrowManagementTab(QWidget):
     def load_borrowed_books(self):
         """加载当前用户已借出的图书"""
         records = load_csv(BORROW_RECORDS_FILE)
-        user_borrowed = [r for r in records if r["borrower"] == self.user["username"] and not r["actual_return_time"]]
+        user_borrowed = [r for r in records if not r["actual_return_time"]]
 
         # 按借阅时间倒序排序
         user_borrowed.sort(key=lambda r: r["borrow_time"], reverse=True)
@@ -157,12 +156,18 @@ class BorrowManagementTab(QWidget):
         book_id = self.book_table.item(row, 0).text()
         book_title = self.book_table.item(row, 1).text()
 
+        # 弹出对话框输入借阅人名称
+        borrower, ok = QInputDialog.getText(self, "输入借阅人名称", "请输入借阅人名称:")
+        if not ok or not borrower:
+            QMessageBox.warning(self, "警告", "未输入有效的借阅人名称")
+            return
+
         # 创建借阅记录
         borrow_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         due_time = (datetime.datetime.now() + datetime.timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
 
         new_record = {
-            "borrower": self.user["username"],
+            "borrower": borrower,
             "book_id": book_id,
             "book_title": book_title,
             "borrow_time": borrow_time,
@@ -176,7 +181,7 @@ class BorrowManagementTab(QWidget):
 
         # 刷新界面
         self.load_available_books()
-        QMessageBox.information(self, "成功", f"借阅成功\n借阅日期: {borrow_time}\n应还日期: {due_time}")
+        QMessageBox.information(self, "成功", f"借阅成功\n借阅人: {borrower}\n借阅日期: {borrow_time}\n应还日期: {due_time}")
 
     def return_book(self):
         """归还图书（修复方法缺失问题，严格符合需求3.1.3）"""
@@ -185,8 +190,7 @@ class BorrowManagementTab(QWidget):
             records = load_csv(BORROW_RECORDS_FILE)
             user_unreturned = [
                 r for r in records
-                if r["borrower"] == self.user["username"]
-                   and not r["actual_return_time"].strip()  # 未归还标识（需求3.1.3）
+                if not r["actual_return_time"].strip()  # 未归还标识（需求3.1.3）
             ]
 
             if not user_unreturned:
@@ -246,7 +250,6 @@ class BorrowManagementTab(QWidget):
         # 更新应还时间
         new_due_time = (datetime.datetime.strptime(selected_record["due_time"], "%Y-%m-%d %H:%M:%S") +
                         datetime.timedelta(days=15)).strftime("%Y-%m-%d %H:%M:%S")
-
         for r in records:
             if (r["borrower"] == selected_record["borrower"]
                     and r["book_id"] == selected_record["book_id"]
@@ -259,64 +262,118 @@ class BorrowManagementTab(QWidget):
         QMessageBox.information(self, "成功", f"续借成功，新的应还日期: {new_due_time}")
 
 
-# 配套ReturnDialog类（完整实现get_selected_record方法）
-class ReturnDialog(QDialog):
-    def __init__(self, records):
+class BorrowerDialog(QDialog):
+    def __init__(self):
         super().__init__()
-        self.records = records  # 未归还记录列表（需求3.1.3）
-        self.selected_row = -1  # 选中行索引
         self.init_ui()
 
     def init_ui(self):
-        self.setWindowTitle("选择归还图书")
-        self.setFixedSize(600, 300)
+        layout = QVBoxLayout()
 
-        # 表格初始化（仅展示必要字段：需求3.1.3核心信息）
+        label = QLabel("请输入借阅人名称:")
+        self.borrower_edit = QLineEdit()
+
+        ok_btn = QPushButton("确定")
+        cancel_btn = QPushButton("取消")
+
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+
+        layout.addWidget(label)
+        layout.addWidget(self.borrower_edit)
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def get_borrower_name(self):
+        return self.borrower_edit.text().strip()
+
+
+class ReturnDialog(QDialog):
+    def __init__(self, records):
+        super().__init__()
+        self.records = records
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["图书编号", "书名", "借阅时间", "应还时间"])
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(
+            ["借阅人", "图书编号", "书名", "借阅时间", "应还时间", "状态"]
+        )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-        # 填充数据（严格对应需求3.1.3字段）
         self.table.setRowCount(len(self.records))
         for row, r in enumerate(self.records):
-            self.table.setItem(row, 0, QTableWidgetItem(r["book_id"]))
-            self.table.setItem(row, 1, QTableWidgetItem(r["book_title"]))
-            self.table.setItem(row, 2, QTableWidgetItem(r["borrow_time"]))
-            self.table.setItem(row, 3, QTableWidgetItem(r["due_time"]))
+            self.table.setItem(row, 0, QTableWidgetItem(r["borrower"]))
+            self.table.setItem(row, 1, QTableWidgetItem(r["book_id"]))
+            self.table.setItem(row, 2, QTableWidgetItem(r["book_title"]))
+            self.table.setItem(row, 3, QTableWidgetItem(r["borrow_time"]))
+            self.table.setItem(row, 4, QTableWidgetItem(r["due_time"]))
+            self.table.setItem(row, 5, QTableWidgetItem("未归还"))
+        layout.addWidget(self.table)
 
-        # 信号绑定：选中行变化时记录索引
-        self.table.itemSelectionChanged.connect(self.on_row_selected)
-
-        # 按钮布局（需求3.1.3交互流程）
         btn_layout = QHBoxLayout()
-        self.ok_btn = QPushButton("确认")
+        self.ok_btn = QPushButton("确定")
         self.cancel_btn = QPushButton("取消")
         self.ok_btn.clicked.connect(self.accept)
         self.cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(self.ok_btn)
         btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
 
-        # 主布局
-        main_layout = QVBoxLayout()
-        main_layout.addWidget(self.table)
-        main_layout.addLayout(btn_layout)
-        self.setLayout(main_layout)
-
-    def on_row_selected(self):
-        """记录选中行（需求3.1.3：需选择1条记录）"""
-        selected = self.table.selectedItems()
-        if selected:
-            self.selected_row = selected[0].row()  # 记录选中行索引
+        self.setLayout(layout)
 
     def get_selected_record(self):
-        """返回选中记录（需求3.1.3：严格校验选中状态）"""
-        if self.selected_row == -1 or self.selected_row >= len(self.records):
-            return None  # 未选中或索引越界
-        return self.records[self.selected_row]  # 返回选中记录
+        selected_rows = set(item.row() for item in self.table.selectedItems())
+        if len(selected_rows) != 1:
+            return None
+        row = list(selected_rows)[0]
+        return self.records[row]
 
 
-class RenewDialog(ReturnDialog):
+class RenewDialog(QDialog):
     def __init__(self, records):
-        super().__init__(records)
-        self.setWindowTitle("选择要续借的图书")
+        super().__init__()
+        self.records = records
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        self.table = QTableWidget()
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels(
+            ["借阅人", "图书编号", "书名", "借阅时间", "应还时间", "状态"]
+        )
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.table.setRowCount(len(self.records))
+        for row, r in enumerate(self.records):
+            self.table.setItem(row, 0, QTableWidgetItem(r["borrower"]))
+            self.table.setItem(row, 1, QTableWidgetItem(r["book_id"]))
+            self.table.setItem(row, 2, QTableWidgetItem(r["book_title"]))
+            self.table.setItem(row, 3, QTableWidgetItem(r["borrow_time"]))
+            self.table.setItem(row, 4, QTableWidgetItem(r["due_time"]))
+            self.table.setItem(row, 5, QTableWidgetItem("未归还"))
+        layout.addWidget(self.table)
+
+        btn_layout = QHBoxLayout()
+        self.ok_btn = QPushButton("确定")
+        self.cancel_btn = QPushButton("取消")
+        self.ok_btn.clicked.connect(self.accept)
+        self.cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(self.ok_btn)
+        btn_layout.addWidget(self.cancel_btn)
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def get_selected_record(self):
+        selected_rows = set(item.row() for item in self.table.selectedItems())
+        if len(selected_rows) != 1:
+            return None
+        row = list(selected_rows)[0]
+        return self.records[row]
