@@ -41,10 +41,17 @@ class LibrarySystem(QApplication):
     def logout(self):
         """退出到登录界面"""
         self.current_user = None
-        self.login_window = LoginWindow(self)
-        self.login_window.show()
         if hasattr(self, 'main_window'):
             self.main_window.close()
+        self.login_window = LoginWindow(self)
+        self.login_window.show()
+
+    def exit_out(self):
+        """退出整个系统"""
+        self.current_user = None
+        if hasattr(self, 'main_window'):
+            self.main_window.close()
+        self.quit()
 
 
 if __name__ == "__main__":

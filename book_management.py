@@ -1,16 +1,12 @@
-# book_management.py
-import sys
-import os
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
+                             QPushButton, QTableWidget, QTableWidgetItem,
+                             QHeaderView, QMessageBox, QFileDialog, QDialog,
+                             QFormLayout, QLabel, QLineEdit as QLE)
 import csv
-import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-                             QPushButton, QTableWidget, QTableWidgetItem, QMessageBox,
-                             QFormLayout, QHeaderView, QDialog, QApplication, QFileDialog)
-from PyQt5.QtCore import Qt
-from data_utils import load_json, save_json, BOOKS_FILE, load_csv, BORROW_RECORDS_FILE
-from PyQt5.QtChart import QChart, QChartView, QBarSet, QBarSeries, QBarCategoryAxis
-from PyQt5.QtGui import QPainter
+from data_utils import load_json, save_json, load_csv
 
+BOOKS_FILE = 'data/books.json'
+BORROW_RECORDS_FILE = 'data/borrow_records.csv'
 
 class BookManagementTab(QWidget):
     def __init__(self, user):
@@ -44,26 +40,23 @@ class BookManagementTab(QWidget):
             self.edit_btn = QPushButton("修改图书")
             self.delete_btn = QPushButton("删除图书")
             self.import_btn = QPushButton("批量导入")
-            self.stats_btn = QPushButton("图书统计")
 
             self.add_btn.clicked.connect(self.add_book)
             self.edit_btn.clicked.connect(self.edit_book)
             self.delete_btn.clicked.connect(self.delete_book)
             self.import_btn.clicked.connect(self.import_books)
-            self.stats_btn.clicked.connect(self.show_book_stats)
 
             btn_layout.addWidget(self.add_btn)
             btn_layout.addWidget(self.edit_btn)
             btn_layout.addWidget(self.delete_btn)
             btn_layout.addWidget(self.import_btn)
-            btn_layout.addWidget(self.stats_btn)
             layout.addLayout(btn_layout)
 
         # 图书表格
         self.book_table = QTableWidget()
-        self.book_table.setColumnCount(8)
+        self.book_table.setColumnCount(7)  # 去掉出版日期字段，列数减1
         self.book_table.setHorizontalHeaderLabels(["图书编号", "书名", "作者", "ISBN",
-                                                   "出版社", "出版日期", "馆藏位置", "状态"])
+                                                   "出版社", "馆藏位置", "状态"])
         self.book_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self.book_table)
 
@@ -87,12 +80,11 @@ class BookManagementTab(QWidget):
             self.book_table.setItem(row, 2, QTableWidgetItem(book.get("author", "")))
             self.book_table.setItem(row, 3, QTableWidgetItem(book.get("isbn", "")))
             self.book_table.setItem(row, 4, QTableWidgetItem(book.get("publisher", "")))
-            self.book_table.setItem(row, 5, QTableWidgetItem(book.get("publish_date", "")))
-            self.book_table.setItem(row, 6, QTableWidgetItem(book.get("location", "")))
+            self.book_table.setItem(row, 5, QTableWidgetItem(book.get("location", "")))
 
             # 状态判断（在库/已借出）
             status = "已借出" if book["id"] in borrowed_ids else "在库"
-            self.book_table.setItem(row, 7, QTableWidgetItem(status))
+            self.book_table.setItem(row, 6, QTableWidgetItem(status))
 
     def search_books(self):
         """搜索图书"""
@@ -110,6 +102,7 @@ class BookManagementTab(QWidget):
     def add_book(self):
         """添加图书（优化：高效校验+异常处理）"""
         dialog = BookDialog()  # 使用QDialog的正确实现
+        dialog.setWindowTitle("图书入库")
         if dialog.exec_():
             new_book = dialog.get_book_data()
             book_id = new_book["id"]
@@ -200,18 +193,15 @@ class BookManagementTab(QWidget):
                         duplicate_ids.append(row['id'])
                         continue
 
-                    # 创建图书对象
+                    # 创建图书对象，去掉出版日期字段
                     book = {
                         "id": row['id'],
                         "title": row.get('title', ''),
                         "author": row.get('author', ''),
                         "isbn": row.get('isbn', ''),
                         "publisher": row.get('publisher', ''),
-                        "publish_date": row.get('publish_date', ''),
                         "location": row.get('location', ''),
                         "category": row.get('category', ''),
-                        "price": row.get('price', '0'),
-                        "quantity": row.get('quantity', '1')
                     }
                     imported_books.append(book)
                     self.book_ids.add(row['id'])  # 添加到ID集合
@@ -234,128 +224,62 @@ class BookManagementTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "导入失败", f"导入过程中发生错误: {str(e)}")
 
-    def show_book_stats(self):
-        """显示图书统计信息"""
-        # 按分类统计图书数量
-        category_counts = {}
-        for book in self.books:
-            category = book.get("category", "未分类")
-            category_counts[category] = category_counts.get(category, 0) + 1
 
-        # 如果没有图书数据
-        if not category_counts:
-            QMessageBox.information(self, "图书统计", "没有可统计的图书数据")
-            return
-
-        # 创建图表
-        chart = QChart()
-        chart.setTitle("图书分类统计")
-        chart.setAnimationOptions(QChart.SeriesAnimations)
-
-        # 创建柱状图数据
-        bar_set = QBarSet("图书数量")
-        categories = []
-
-        # 按数量排序
-        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
-
-        for category, count in sorted_categories:
-            bar_set.append(count)
-            categories.append(category)
-
-        bar_series = QBarSeries()
-        bar_series.append(bar_set)
-        chart.addSeries(bar_series)
-
-        # 创建X轴
-        axis_x = QBarCategoryAxis()
-        axis_x.append(categories)
-        chart.addAxis(axis_x, Qt.AlignBottom)
-        bar_series.attachAxis(axis_x)
-
-        # 创建Y轴
-        axis_y = QBarCategoryAxis()
-        max_count = max(category_counts.values())
-        axis_y.setRange("0", str(max_count))
-        chart.addAxis(axis_y, Qt.AlignLeft)
-        bar_series.attachAxis(axis_y)
-
-        # 图表视图
-        chart_view = QChartView(chart)
-        chart_view.setRenderHint(QPainter.Antialiasing)
-
-        # 创建对话框显示图表
-        stats_dialog = QDialog(self)
-        stats_dialog.setWindowTitle("图书分类统计")
-        stats_dialog.setMinimumSize(800, 600)
-
-        layout = QVBoxLayout()
-        layout.addWidget(chart_view)
-        stats_dialog.setLayout(layout)
-
-        stats_dialog.exec_()
-
-
-# 优化：使用QDialog实现对话框，解决事件循环导致的卡顿
 class BookDialog(QDialog):
-    def __init__(self, book_data=None):
+    def __init__(self, book=None):
         super().__init__()
-        self.book_data = book_data or {}
+        self.book = book
         self.init_ui()
+        self.setMinimumWidth(450)
 
     def init_ui(self):
-        self.setWindowTitle("编辑图书" if self.book_data else "添加图书")
-        self.setFixedSize(400, 400)
+        layout = QFormLayout()
 
-        layout = QVBoxLayout()
-        form_layout = QFormLayout()
-        form_layout.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.id_edit = QLE()
+        self.title_edit = QLE()
+        self.author_edit = QLE()
+        self.isbn_edit = QLE()
+        self.publisher_edit = QLE()
+        self.location_edit = QLE()
+        self.category_edit = QLE()
 
-        self.id_edit = QLineEdit(self.book_data.get("id", ""))
-        self.title_edit = QLineEdit(self.book_data.get("title", ""))
-        self.author_edit = QLineEdit(self.book_data.get("author", ""))
-        self.isbn_edit = QLineEdit(self.book_data.get("isbn", ""))
-        self.publisher_edit = QLineEdit(self.book_data.get("publisher", ""))
-        self.publish_date_edit = QLineEdit(self.book_data.get("publish_date", ""))
-        self.location_edit = QLineEdit(self.book_data.get("location", ""))
-        self.category_edit = QLineEdit(self.book_data.get("category", ""))
-        self.price_edit = QLineEdit(str(self.book_data.get("price", "")))
-        self.quantity_edit = QLineEdit(str(self.book_data.get("quantity", "1")))
+        if self.book:
+            self.id_edit.setText(self.book.get("id", ""))
+            self.title_edit.setText(self.book.get("title", ""))
+            self.author_edit.setText(self.book.get("author", ""))
+            self.isbn_edit.setText(self.book.get("isbn", ""))
+            self.publisher_edit.setText(self.book.get("publisher", ""))
+            self.location_edit.setText(self.book.get("location", ""))
+            self.category_edit.setText(self.book.get("category", ""))
 
-        form_layout.addRow("图书编号*:", self.id_edit)
-        form_layout.addRow("书名*:", self.title_edit)
-        form_layout.addRow("作者*:", self.author_edit)
-        form_layout.addRow("ISBN:", self.isbn_edit)
-        form_layout.addRow("出版社:", self.publisher_edit)
-        form_layout.addRow("出版日期:", self.publish_date_edit)
-        form_layout.addRow("馆藏位置:", self.location_edit)
-        form_layout.addRow("分类:", self.category_edit)
-        form_layout.addRow("单价:", self.price_edit)
-        form_layout.addRow("数量:", self.quantity_edit)
-
-        layout.addLayout(form_layout)
+        layout.addRow(QLabel("图书编号:"), self.id_edit)
+        layout.addRow(QLabel("书名:"), self.title_edit)
+        layout.addRow(QLabel("作者:"), self.author_edit)
+        layout.addRow(QLabel("ISBN:"), self.isbn_edit)
+        layout.addRow(QLabel("出版社:"), self.publisher_edit)
+        layout.addRow(QLabel("馆藏位置:"), self.location_edit)
+        layout.addRow(QLabel("分类:"), self.category_edit)
 
         btn_layout = QHBoxLayout()
-        self.ok_btn = QPushButton("确定")
-        self.cancel_btn = QPushButton("取消")
-        self.ok_btn.clicked.connect(self.accept)
-        self.cancel_btn.clicked.connect(self.reject)
-        btn_layout.addWidget(self.ok_btn)
-        btn_layout.addWidget(self.cancel_btn)
-        layout.addLayout(btn_layout)
+        ok_btn = QPushButton("确定")
+        cancel_btn = QPushButton("取消")
+
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addRow(btn_layout)
 
         self.setLayout(layout)
 
     def get_book_data(self):
         return {
-            "id": self.id_edit.text().strip(),
-            "title": self.title_edit.text().strip(),
-            "author": self.author_edit.text().strip(),
-            "isbn": self.isbn_edit.text().strip(),
-            "publisher": self.publisher_edit.text().strip(),
-            "publish_date": self.publish_date_edit.text().strip(),
-            "location": self.location_edit.text().strip(),
-            "category": self.category_edit.text().strip(),
-            "price": self.price_edit.text().strip(),
-            "quantity": self.quantity_edit.text().strip()
+            "id": self.id_edit.text(),
+            "title": self.title_edit.text(),
+            "author": self.author_edit.text(),
+            "isbn": self.isbn_edit.text(),
+            "publisher": self.publisher_edit.text(),
+            "location": self.location_edit.text(),
+            "category": self.category_edit.text()
         }

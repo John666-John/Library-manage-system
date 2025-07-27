@@ -1,10 +1,9 @@
-# record_query.py
-import os
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-                             QPushButton, QTableWidget, QTableWidgetItem, QMessageBox,
-                             QFileDialog, QHeaderView)
-from data_utils import load_csv, BORROW_RECORDS_FILE, save_csv
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
+                             QPushButton, QTableWidget, QTableWidgetItem,
+                             QHeaderView, QMessageBox, QFileDialog)
+from data_utils import load_csv, save_csv
 
+BORROW_RECORDS_FILE = 'data/borrow_records.csv'
 
 class RecordQueryTab(QWidget):
     def __init__(self, user):
@@ -97,4 +96,4 @@ class RecordQueryTab(QWidget):
             save_csv(file_path, self.records)
             QMessageBox.information(self, "成功", f"记录已导出至:\n{file_path}")
         except Exception as e:
-            QMessageBox.error(self, "错误", f"导出失败:\n{str(e)}")
+            QMessageBox.critical(self, "错误", f"导出失败:\n{str(e)}")
