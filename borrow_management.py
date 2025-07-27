@@ -1,11 +1,11 @@
-# borrow_management.py
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QTabWidget, QHBoxLayout,
+                             QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
+                             QHeaderView, QMessageBox, QDialog, QGroupBox)
 import datetime
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-                             QPushButton, QTableWidget, QTableWidgetItem, QGroupBox,
-                             QTextEdit, QMessageBox, QHeaderView, QApplication,
-                             QDialog, QTabWidget)
-from PyQt5.QtCore import Qt
-from data_utils import load_json, load_csv, save_csv, BOOKS_FILE, BORROW_RECORDS_FILE
+from data_utils import load_json, load_csv, save_csv
+
+BOOKS_FILE = 'data/books.json'
+BORROW_RECORDS_FILE = 'data/borrow_records.csv'
 
 
 class BorrowManagementTab(QWidget):
@@ -42,9 +42,9 @@ class BorrowManagementTab(QWidget):
 
         # 可借阅图书表格
         self.book_table = QTableWidget()
-        self.book_table.setColumnCount(7)
+        self.book_table.setColumnCount(6)  # 去掉出版日期字段，列数减1
         self.book_table.setHorizontalHeaderLabels(["图书编号", "书名", "作者", "ISBN",
-                                                   "出版社", "出版日期", "馆藏位置"])
+                                                   "出版社", "馆藏位置"])
         self.book_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         borrow_layout.addWidget(self.book_table)
 
@@ -57,22 +57,6 @@ class BorrowManagementTab(QWidget):
 
         # 添加标签页
         self.tabs.addTab(borrow_tab, "可借阅图书")
-
-        # 借阅历史标签页
-        history_tab = QWidget()
-        history_layout = QVBoxLayout(history_tab)
-
-        # 历史记录表格
-        self.history_table = QTableWidget()
-        self.history_table.setColumnCount(6)
-        self.history_table.setHorizontalHeaderLabels(
-            ["图书编号", "书名", "借阅时间", "应还时间", "实际归还时间", "状态"]
-        )
-        self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        history_layout.addWidget(self.history_table)
-
-        # 添加标签页
-        self.tabs.addTab(history_tab, "借阅历史")
 
         layout.addWidget(self.tabs)
 
@@ -88,14 +72,18 @@ class BorrowManagementTab(QWidget):
         btn_layout.addWidget(self.renew_btn)
         layout.addLayout(btn_layout)
 
-        # 逾期提醒
-        self.overdue_group = QGroupBox("逾期提醒")
-        overdue_layout = QVBoxLayout()
-        self.overdue_text = QTextEdit()
-        self.overdue_text.setReadOnly(True)
-        overdue_layout.addWidget(self.overdue_text)
-        self.overdue_group.setLayout(overdue_layout)
-        layout.addWidget(self.overdue_group)
+        # 已借出图书标签页
+        self.borrowed_group = QGroupBox("已借出图书")
+        borrowed_layout = QVBoxLayout()
+        self.borrowed_table = QTableWidget()
+        self.borrowed_table.setColumnCount(6)  # 去掉出版日期字段，列数减1
+        self.borrowed_table.setHorizontalHeaderLabels(
+            ["图书编号", "书名", "借阅时间", "应还时间", "实际归还时间", "状态"]
+        )
+        self.borrowed_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        borrowed_layout.addWidget(self.borrowed_table)
+        self.borrowed_group.setLayout(borrowed_layout)
+        layout.addWidget(self.borrowed_group)
 
         self.setLayout(layout)
 
@@ -107,8 +95,7 @@ class BorrowManagementTab(QWidget):
 
         self.available_books = [b for b in self.books if b["id"] not in borrowed_ids]
         self.update_book_table(self.available_books)
-        self.load_borrow_history()
-        self.check_overdue()
+        self.load_borrowed_books()
 
     def update_book_table(self, books):
         """更新图书表格"""
@@ -119,33 +106,32 @@ class BorrowManagementTab(QWidget):
             self.book_table.setItem(row, 2, QTableWidgetItem(book["author"]))
             self.book_table.setItem(row, 3, QTableWidgetItem(book.get("isbn", "")))
             self.book_table.setItem(row, 4, QTableWidgetItem(book.get("publisher", "")))
-            self.book_table.setItem(row, 5, QTableWidgetItem(book.get("publish_date", "")))
-            self.book_table.setItem(row, 6, QTableWidgetItem(book.get("location", "")))
+            self.book_table.setItem(row, 5, QTableWidgetItem(book.get("location", "")))
 
-    def load_borrow_history(self):
-        """加载当前用户的借阅历史"""
+    def load_borrowed_books(self):
+        """加载当前用户已借出的图书"""
         records = load_csv(BORROW_RECORDS_FILE)
-        user_records = [r for r in records if r["borrower"] == self.user["username"]]
+        user_borrowed = [r for r in records if r["borrower"] == self.user["username"] and not r["actual_return_time"]]
 
         # 按借阅时间倒序排序
-        user_records.sort(key=lambda r: r["borrow_time"], reverse=True)
+        user_borrowed.sort(key=lambda r: r["borrow_time"], reverse=True)
 
-        self.history_table.setRowCount(len(user_records))
-        for row, r in enumerate(user_records):
-            self.history_table.setItem(row, 0, QTableWidgetItem(r["book_id"]))
-            self.history_table.setItem(row, 1, QTableWidgetItem(r["book_title"]))
-            self.history_table.setItem(row, 2, QTableWidgetItem(r["borrow_time"]))
-            self.history_table.setItem(row, 3, QTableWidgetItem(r["due_time"]))
+        self.borrowed_table.setRowCount(len(user_borrowed))
+        for row, r in enumerate(user_borrowed):
+            self.borrowed_table.setItem(row, 0, QTableWidgetItem(r["book_id"]))
+            self.borrowed_table.setItem(row, 1, QTableWidgetItem(r["book_title"]))
+            self.borrowed_table.setItem(row, 2, QTableWidgetItem(r["borrow_time"]))
+            self.borrowed_table.setItem(row, 3, QTableWidgetItem(r["due_time"]))
 
             actual_return = r["actual_return_time"]
             if not actual_return.strip():
                 actual_return = "尚未归还"
 
-            self.history_table.setItem(row, 4, QTableWidgetItem(actual_return))
+            self.borrowed_table.setItem(row, 4, QTableWidgetItem(actual_return))
 
             # 状态判断
             status = "已归还" if actual_return != "尚未归还" else "未归还"
-            self.history_table.setItem(row, 5, QTableWidgetItem(status))
+            self.borrowed_table.setItem(row, 5, QTableWidgetItem(status))
 
     def search_books(self):
         """搜索可借阅图书"""
@@ -244,58 +230,33 @@ class BorrowManagementTab(QWidget):
         user_borrowed = [r for r in records if r["borrower"] == self.user["username"] and not r["actual_return_time"]]
 
         if not user_borrowed:
-            QMessageBox.information(self, "提示", "您没有可续借的图书")
+            QMessageBox.information(self, "提示", "无未归还图书，无法续借")
             return
 
+        # 弹出续借对话框，选择要续借的图书
         dialog = RenewDialog(user_borrowed)
-        if dialog.exec_():
-            selected_record = dialog.get_selected_record()
-            if not selected_record:
-                return
+        if dialog.exec_() != QDialog.Accepted:
+            return
 
-            # 检查是否逾期
-            now = datetime.datetime.now()
-            due_time = datetime.datetime.strptime(selected_record["due_time"], "%Y-%m-%d %H:%M:%S")
-            if now > due_time:
-                QMessageBox.warning(self, "警告", "图书已逾期，无法续借")
-                return
+        selected_record = dialog.get_selected_record()
+        if not selected_record:
+            QMessageBox.warning(self, "错误", "未选择图书")
+            return
 
-            # 检查续借次数（默认最多1次）
-            borrow_time = datetime.datetime.strptime(selected_record["borrow_time"], "%Y-%m-%d %H:%M:%S")
-            if (due_time - borrow_time) > datetime.timedelta(days=31):  # 超过31天视为已续借
-                QMessageBox.warning(self, "警告", "最多续借1次")
-                return
-
-            # 续借15天
-            new_due = (due_time + datetime.timedelta(days=15)).strftime("%Y-%m-%d %H:%M:%S")
-            for r in records:
-                if (r["borrower"] == selected_record["borrower"] and
-                        r["book_id"] == selected_record["book_id"] and
-                        r["borrow_time"] == selected_record["borrow_time"]):
-                    r["due_time"] = new_due
-                    break
-
-            save_csv(BORROW_RECORDS_FILE, records)
-            QMessageBox.information(self, "成功", f"续借成功，新应还日期: {new_due}")
-
-    def check_overdue(self):
-        """检查逾期图书"""
-        records = load_csv(BORROW_RECORDS_FILE)
-        now = datetime.datetime.now()
-        overdue = []
+        # 更新应还时间
+        new_due_time = (datetime.datetime.strptime(selected_record["due_time"], "%Y-%m-%d %H:%M:%S") +
+                        datetime.timedelta(days=15)).strftime("%Y-%m-%d %H:%M:%S")
 
         for r in records:
-            if r["borrower"] == self.user["username"] and not r["actual_return_time"]:
-                due = datetime.datetime.strptime(r["due_time"], "%Y-%m-%d %H:%M:%S")
-                if now > due:
-                    days = (now - due).days
-                    overdue.append(f"• 《{r['book_title']}》(编号: {r['book_id']}) 逾期 {days} 天")
+            if (r["borrower"] == selected_record["borrower"]
+                    and r["book_id"] == selected_record["book_id"]
+                    and r["borrow_time"] == selected_record["borrow_time"]):
+                r["due_time"] = new_due_time
+                break
 
-        if overdue:
-            self.overdue_text.setText("\n".join(overdue))
-            self.overdue_group.setTitle(f"逾期提醒 ({len(overdue)})")
-        else:
-            self.overdue_text.setText("无逾期图书")
+        save_csv(BORROW_RECORDS_FILE, records)
+        self.load_available_books()
+        QMessageBox.information(self, "成功", f"续借成功，新的应还日期: {new_due_time}")
 
 
 # 配套ReturnDialog类（完整实现get_selected_record方法）

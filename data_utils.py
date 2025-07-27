@@ -84,3 +84,30 @@ def check_auto_backup():
         backup_data()
         with open(backup_flag, 'w') as f:
             f.write("")
+
+def import_data(file_path):
+    """导入已备份的数据记录，与当前数据记录合并去重"""
+    file_ext = os.path.splitext(file_path)[1].lower()
+    if file_ext == '.json':
+        # 处理 JSON 文件（如 books.json, users.json）
+        data = load_json(file_path)
+        if 'id' in data[0]:  # 假设是图书数据
+            current_books = load_json('data/books.json')
+            current_book_ids = {book['id'] for book in current_books}
+            new_books = [book for book in data if book['id'] not in current_book_ids]
+            current_books.extend(new_books)
+            save_json('data/books.json', current_books)
+        elif 'username' in data[0]:  # 假设是用户数据
+            current_users = load_json('data/users.json')
+            current_usernames = {user['username'] for user in current_users}
+            new_users = [user for user in data if user['username'] not in current_usernames]
+            current_users.extend(new_users)
+            save_json('data/users.json', current_users)
+    elif file_ext == '.csv':
+        # 处理 CSV 文件（如 borrow_records.csv）
+        data = load_csv(file_path)
+        current_records = load_csv('data/borrow_records.csv')
+        current_record_keys = {(r['borrower'], r['book_id'], r['borrow_time']) for r in current_records}
+        new_records = [r for r in data if (r['borrower'], r['book_id'], r['borrow_time']) not in current_record_keys]
+        current_records.extend(new_records)
+        save_csv('data/borrow_records.csv', current_records)

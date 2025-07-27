@@ -73,7 +73,7 @@ class LoginWindow(QWidget):
                 self.app.show_main_window(user)
                 return
 
-        QMessageBox.error(self, "错误", "用户名或密码错误")
+        QMessageBox.critical(self, "错误", "用户名或密码错误")
 
     def show_register(self):
         """显示注册窗口"""
