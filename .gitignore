@@ -2,3 +2,6 @@
 backup/*
 __pycache__/*
 data/*
+/*.spec
+build/*
+dist/*
