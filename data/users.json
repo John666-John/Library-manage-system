@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "username": "John",
+    "password": "202cb962ac59075b964b07152d234b70",
+    "contact": "123",
+    "id_card": "123",
+    "role": "admin"
+  }
+]
