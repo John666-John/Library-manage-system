@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdi
                              QPushButton, QFormLayout, QMessageBox, QComboBox)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
-from data_utils import load_json, save_json, USERS_FILE, encrypt_password
+from data_utils import load_json, save_json, USERS_FILE, encrypt_password, is_valid_phone, is_valid_id_card
 
 
 class LoginWindow(QWidget):
@@ -128,12 +128,25 @@ class RegisterWindow(QWidget):
         id_card = self.id_edit.text().strip()
         role = "admin" if self.role_combo.currentText() == "管理员" else "user"
 
+        # 输入校验
         if not all([username, password, confirm, contact, id_card]):
             QMessageBox.warning(self, "警告", "所有字段不能为空")
             return
 
+        if len(password) < 6:
+            QMessageBox.warning(self, "警告", "密码长度不能少于6位")
+            return
+
         if password != confirm:
             QMessageBox.warning(self, "警告", "两次密码不一致")
+            return
+
+        if not is_valid_phone(contact):
+            QMessageBox.warning(self, "警告", "请输入有效的手机号码")
+            return
+
+        if not is_valid_id_card(id_card):
+            QMessageBox.warning(self, "警告", "请输入有效的身份证号码")
             return
 
         users = load_json(USERS_FILE)

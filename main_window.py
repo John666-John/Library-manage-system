@@ -1,4 +1,6 @@
 # main_window.py
+# 在文件顶部添加导入
+from stats_management import StatsManagementTab
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QMenuBar, QMenu, QAction, QMessageBox, QFileDialog)
 from PyQt5.QtGui import QIcon
@@ -124,13 +126,16 @@ class MainWindow(QMainWindow):
         if not file_path:
             return
         try:
-            import_data(file_path)
-            QMessageBox.information(self, "成功", "数据导入成功")
-            # 重新加载数据
-            self.book_tab.load_books()
-            self.borrow_tab.load_available_books()
-            self.record_tab.load_records()
-            if self.user["role"] == "admin":
-                self.user_tab.load_users()
+            success, message = import_data(file_path)
+            if success:
+                QMessageBox.information(self, "成功", message)
+                # 重新加载数据
+                self.book_tab.load_books()
+                self.borrow_tab.load_available_books()
+                self.record_tab.load_records()
+                if self.user["role"] == "admin":
+                    self.user_tab.load_users()
+            else:
+                QMessageBox.warning(self, "导入失败", message)
         except Exception as e:
             QMessageBox.critical(self, "错误", f"数据导入失败: {str(e)}")

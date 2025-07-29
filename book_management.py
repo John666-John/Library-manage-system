@@ -8,6 +8,7 @@ from data_utils import load_json, save_json, load_csv
 BOOKS_FILE = 'data/books.json'
 BORROW_RECORDS_FILE = 'data/borrow_records.csv'
 
+
 class BookManagementTab(QWidget):
     def __init__(self, user):
         super().__init__()
@@ -124,7 +125,62 @@ class BookManagementTab(QWidget):
                 # 新增：异常捕获，避免程序退出
                 QMessageBox.critical(self, "错误", f"添加失败：{str(e)}")
 
-    # 以下为其他方法（保持不变，但确保异常处理）
+    def import_books(self):
+        """批量导入图书"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择CSV文件", "", "CSV文件 (*.csv)"
+        )
+        if not file_path:
+            return
+
+        try:
+            imported_books = []
+            duplicate_ids = []
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                required_fields = ["id", "title", "author"]
+                if not all(field in reader.fieldnames for field in required_fields):
+                    QMessageBox.warning(self, "错误", "CSV文件缺少必要字段(id, title, author)")
+                    return
+
+                for row in reader:
+                    # 检查图书ID是否唯一
+                    if row['id'] in self.book_ids:
+                        duplicate_ids.append(row['id'])
+                        continue
+
+                    # 创建图书对象
+                    book = {
+                        "id": row['id'],
+                        "title": row.get('title', ''),
+                        "author": row.get('author', ''),
+                        "isbn": row.get('isbn', ''),
+                        "publisher": row.get('publisher', ''),
+                        "location": row.get('location', ''),
+                        "category": row.get('category', ''),
+                    }
+                    imported_books.append(book)
+                    self.book_ids.add(row['id'])  # 添加到ID集合
+
+            # 添加到主图书列表
+            self.books.extend(imported_books)
+            save_json(BOOKS_FILE, self.books)
+
+            # 显示导入结果
+            success_count = len(imported_books)
+            dup_count = len(duplicate_ids)
+            msg = f"成功导入 {success_count} 本图书"
+            if dup_count > 0:
+                msg += f"\n{dup_count} 本图书因ID重复被跳过"
+                msg += f"\n重复ID: {', '.join(duplicate_ids[:5])}" + ("..." if dup_count > 5 else "")
+
+            QMessageBox.information(self, "导入完成", msg)
+            self.load_books()
+
+        except Exception as e:
+            QMessageBox.critical(self, "导入失败", f"导入过程中发生错误: {str(e)}")
+
+    # 其他方法保持不变...
     def edit_book(self):
         try:
             selected_rows = set(item.row() for item in self.book_table.selectedItems())
@@ -173,56 +229,6 @@ class BookManagementTab(QWidget):
             QMessageBox.information(self, "成功", "图书删除成功")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"删除失败：{str(e)}")
-
-    def import_books(self):
-        """批量导入图书"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择CSV文件", "", "CSV文件 (*.csv)"
-        )
-        if not file_path:
-            return
-
-        try:
-            imported_books = []
-            duplicate_ids = []
-            with open(file_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # 检查图书ID是否唯一
-                    if row['id'] in self.book_ids:
-                        duplicate_ids.append(row['id'])
-                        continue
-
-                    # 创建图书对象，去掉出版日期字段
-                    book = {
-                        "id": row['id'],
-                        "title": row.get('title', ''),
-                        "author": row.get('author', ''),
-                        "isbn": row.get('isbn', ''),
-                        "publisher": row.get('publisher', ''),
-                        "location": row.get('location', ''),
-                        "category": row.get('category', ''),
-                    }
-                    imported_books.append(book)
-                    self.book_ids.add(row['id'])  # 添加到ID集合
-
-            # 添加到主图书列表
-            self.books.extend(imported_books)
-            save_json(BOOKS_FILE, self.books)
-
-            # 显示导入结果
-            success_count = len(imported_books)
-            dup_count = len(duplicate_ids)
-            msg = f"成功导入 {success_count} 本图书"
-            if dup_count > 0:
-                msg += f"\n{dup_count} 本图书因ID重复被跳过"
-                msg += f"\n重复ID: {', '.join(duplicate_ids[:5])}" + ("..." if dup_count > 5 else "")
-
-            QMessageBox.information(self, "导入完成", msg)
-            self.load_books()
-
-        except Exception as e:
-            QMessageBox.critical(self, "导入失败", f"导入过程中发生错误: {str(e)}")
 
 
 class BookDialog(QDialog):
