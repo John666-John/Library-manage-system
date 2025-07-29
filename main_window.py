@@ -1,6 +1,4 @@
 # main_window.py
-# 在文件顶部添加导入
-from stats_management import StatsManagementTab
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget,
                              QMenuBar, QMenu, QAction, QMessageBox, QFileDialog)
 from PyQt5.QtGui import QIcon
