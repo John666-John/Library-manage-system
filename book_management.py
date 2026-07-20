@@ -126,59 +126,77 @@ class BookManagementTab(QWidget):
                 QMessageBox.critical(self, "错误", f"添加失败：{str(e)}")
 
     def import_books(self):
-        """批量导入图书"""
+        """批量导入图书（支持多种编码，兼容WPS保存的CSV）"""
         file_path, _ = QFileDialog.getOpenFileName(
             self, "选择CSV文件", "", "CSV文件 (*.csv)"
         )
         if not file_path:
             return
 
-        try:
-            imported_books = []
-            duplicate_ids = []
-            with open(file_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                required_fields = ["id", "title", "author"]
-                if not all(field in reader.fieldnames for field in required_fields):
-                    QMessageBox.warning(self, "错误", "CSV文件缺少必要字段(id, title, author)")
-                    return
+        # 尝试多种编码，优先处理带BOM的UTF-8，再尝试GBK等
+        encodings = ['utf-8-sig', 'gbk', 'gb2312', 'utf-8', 'cp936']
+        imported_books = []
+        duplicate_ids = []
+        success = False
 
-                for row in reader:
-                    # 检查图书ID是否唯一
-                    if row['id'] in self.book_ids:
-                        duplicate_ids.append(row['id'])
-                        continue
+        for enc in encodings:
+            try:
+                with open(file_path, 'r', encoding=enc, newline='') as f:
+                    reader = csv.DictReader(f)
+                    required_fields = ["id", "title", "author"]
+                    if not all(field in reader.fieldnames for field in required_fields):
+                        QMessageBox.warning(self, "错误", "CSV文件缺少必要字段(id, title, author)")
+                        return
 
-                    # 创建图书对象
-                    book = {
-                        "id": row['id'],
-                        "title": row.get('title', ''),
-                        "author": row.get('author', ''),
-                        "isbn": row.get('isbn', ''),
-                        "publisher": row.get('publisher', ''),
-                        "location": row.get('location', ''),
-                        "category": row.get('category', ''),
-                    }
-                    imported_books.append(book)
-                    self.book_ids.add(row['id'])  # 添加到ID集合
+                    # 逐行读取
+                    for row in reader:
+                        # 检查图书ID是否唯一
+                        if row['id'] in self.book_ids:
+                            duplicate_ids.append(row['id'])
+                            continue
 
-            # 添加到主图书列表
-            self.books.extend(imported_books)
-            save_json(BOOKS_FILE, self.books)
+                        # 创建图书对象
+                        book = {
+                            "id": row['id'],
+                            "title": row.get('title', ''),
+                            "author": row.get('author', ''),
+                            "isbn": row.get('isbn', ''),
+                            "publisher": row.get('publisher', ''),
+                            "location": row.get('location', ''),
+                            "category": row.get('category', ''),
+                        }
+                        imported_books.append(book)
+                        self.book_ids.add(row['id'])
 
-            # 显示导入结果
-            success_count = len(imported_books)
-            dup_count = len(duplicate_ids)
-            msg = f"成功导入 {success_count} 本图书"
-            if dup_count > 0:
-                msg += f"\n{dup_count} 本图书因ID重复被跳过"
-                msg += f"\n重复ID: {', '.join(duplicate_ids[:5])}" + ("..." if dup_count > 5 else "")
+                    success = True
+                    break  # 成功读取并处理，跳出编码循环
 
-            QMessageBox.information(self, "导入完成", msg)
-            self.load_books()
+            except UnicodeDecodeError:
+                continue  # 编码不对，尝试下一个
+            except Exception as e:
+                # 其他异常（如字段缺失）已在上面处理，这里兜底
+                QMessageBox.critical(self, "错误", f"读取CSV时发生未知错误：{str(e)}")
+                return
 
-        except Exception as e:
-            QMessageBox.critical(self, "导入失败", f"导入过程中发生错误: {str(e)}")
+        if not success:
+            QMessageBox.warning(self, "错误",
+                                "无法识别CSV文件的编码，请确保文件为UTF-8（含BOM）或GBK编码")
+            return
+
+        # 保存到JSON文件
+        self.books.extend(imported_books)
+        save_json(BOOKS_FILE, self.books)
+
+        # 显示导入结果
+        success_count = len(imported_books)
+        dup_count = len(duplicate_ids)
+        msg = f"成功导入 {success_count} 本图书"
+        if dup_count > 0:
+            msg += f"\n{dup_count} 本图书因ID重复被跳过"
+            msg += f"\n重复ID: {', '.join(duplicate_ids[:5])}" + ("..." if dup_count > 5 else "")
+
+        QMessageBox.information(self, "导入完成", msg)
+        self.load_books()
 
     # 其他方法保持不变...
     def edit_book(self):

@@ -16,5 +16,41 @@
     "publisher": "a",
     "location": "a",
     "category": "a"
+  },
+  {
+    "id": "4",
+    "title": "新xin书本",
+    "author": "无",
+    "isbn": "20202",
+    "publisher": "无",
+    "location": "无",
+    "category": ""
+  },
+  {
+    "id": "3",
+    "title": "新书",
+    "author": "无",
+    "isbn": "20203",
+    "publisher": "无",
+    "location": "无",
+    "category": ""
+  },
+  {
+    "id": "5",
+    "title": "测试1",
+    "author": "无",
+    "isbn": "20203",
+    "publisher": "无",
+    "location": "无",
+    "category": ""
+  },
+  {
+    "id": "6",
+    "title": "测试2",
+    "author": "无",
+    "isbn": "20203",
+    "publisher": "无",
+    "location": "无",
+    "category": ""
   }
 ]

@@ -54,15 +54,24 @@ def save_json(file_path, data):
 
 
 def load_csv(file_path):
-    """加载CSV文件"""
+    """加载CSV文件，自动尝试多种编码以兼容WPS等编辑器"""
     if not os.path.exists(file_path):
         return []
-    try:
-        with open(file_path, 'r', encoding='utf-8', newline='') as f:
-            reader = csv.DictReader(f)
-            return list(reader)
-    except:
-        return []
+    # 常见编码列表：优先处理BOM，再尝试中文编码，最后回退到UTF-8
+    encodings = ['utf-8-sig', 'gbk', 'gb2312', 'utf-8', 'cp936']
+    for enc in encodings:
+        try:
+            with open(file_path, 'r', encoding=enc, newline='') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
+                # 只要不抛异常，即认为成功，直接返回数据（可能为空）
+                return data
+        except UnicodeDecodeError:
+            continue
+        except Exception:
+            continue
+    # 所有编码均失败，返回空列表
+    return []
 
 
 def save_csv(file_path, data):

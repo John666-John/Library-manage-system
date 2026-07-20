@@ -5,5 +5,12 @@
     "contact": "13500169700",
     "id_card": "445202201312220039",
     "role": "admin"
+  },
+  {
+    "username": "root",
+    "password": "e10adc3949ba59abbe56e057f20f883e",
+    "contact": "18806638980",
+    "id_card": "445202199601010101",
+    "role": "admin"
   }
 ]
